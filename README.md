@@ -70,7 +70,7 @@ kubectl auth can-i create secrets --as=system:serviceaccount:argocd:argocd-serve
 ```
 
 ┌─────────────────────────────────────────────────────────────┐
-│                    CLUSTER MAIN (Cluster2)                        │
+│                    CLUSTER MAIN (Cluster2)                  │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │           ArgoCD Server (v2.13.3)                     │  │
 │  │  -  redis                                             │  │
@@ -84,7 +84,7 @@ kubectl auth can-i create secrets --as=system:serviceaccount:argocd:argocd-serve
 └─────────────────────────────────────────────────────────────┘
 ↓
 ┌─────────────────────────────────────────────────────────────┐
-│                  CLUSTER REMOTE (Cluster1)                        │
+│                  CLUSTER REMOTE (Cluster1)                  │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │     ArgoCD Components (Agent)                         │  │
 │  │  -  ServiceAccount: argocd-manager                    │  │
@@ -397,7 +397,7 @@ kubectl --context=kubernetes-admin@kubernetes get nodes
 ```shell
 
 ┌──────────────────────────────────────────────────┐
-│ Cluster MAIN (Cluster2)                                │
+│ Cluster MAIN (Cluster2)                          │
 │                                                  │
 │ 1. Obter credenciais de REMOTE                   │
 │ 2. Criar secret em MAIN com kubeconfig de REMOTE │
@@ -405,13 +405,13 @@ kubectl --context=kubernetes-admin@kubernetes get nodes
 │ 4. Validar conectividade bidirecional            │
 └──────────────────────────────────────────────────┘
 ↓
-┌──────────────────────┐
+┌────────────────────────────┐
 │ Cluster REMOTE (Cluster1)  │
-│                      │
-│ Autorizado para      │
-│   sincronização      │
-│ Pronto para apps     │
-└──────────────────────┘
+│                            │
+│ Autorizado para            │
+│   sincronização            │
+│ Pronto para apps           │
+└────────────────────────────┘
 
 ```
 
