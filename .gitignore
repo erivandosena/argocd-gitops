@@ -1,0 +1,241 @@
+# ============================================================================
+# LOGS E ARQUIVOS TEMPORÁRIOS
+# ============================================================================
+
+logs/
+*.log
+*.log.gz
+*.log.tar.gz
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.iml
+
+# ============================================================================
+# BACKUPS SENSÍVEIS (CONTÊM SECRETS)
+# ============================================================================
+
+backups/
+*.backup
+*.backup.yaml
+*.bak
+argocd-backup-*.yaml
+
+# ============================================================================
+# ARQUIVOS GERADOS PELO SCRIPT
+# ============================================================================
+
+# Arquivo de configuração da senha (se criado)
+.argocd-config
+.argocd-credentials
+
+# Arquivos temporários
+/tmp/
+*.tmp
+*.temp
+
+# ============================================================================
+# KUBECONFIG E CREDENCIAIS (CRÍTICO - NUNCA COMITAR)
+# ============================================================================
+
+kubeconfig
+kubeconfig-*
+.kubeconfig
+.kube/
+~/.kube/config
+config.yaml
+config-*.yaml
+
+# Secrets em qualquer lugar
+*secret*
+*SECRET*
+*password*
+*PASSWORD*
+.env
+.env.local
+.env.*.local
+
+# ============================================================================
+# CERTIFICADOS E CHAVES (CRÍTICO)
+# ============================================================================
+
+*.crt
+*.cert
+*.key
+*.pem
+*.p12
+*.pfx
+tls/
+certs/
+certificates/
+
+# ============================================================================
+# ARQUIVOS DE ESTADO DO DOCKER/KUBERNETES
+# ============================================================================
+
+.docker/
+.kube/
+*.kubeconfig
+kubeconfig.yaml
+docker-compose.override.yml
+
+# ============================================================================
+# DIRETÓRIOS DE BUILD E CACHE
+# ============================================================================
+
+build/
+dist/
+target/
+.cache/
+.gradle/
+node_modules/
+
+# ============================================================================
+# ARQUIVOS IDE E EDITORES
+# ============================================================================
+
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+
+# ============================================================================
+# OS ESPECÍFICOS
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+.directory
+.Trash-*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ============================================================================
+# HISTÓRICO DE COMANDOS
+# ============================================================================
+
+.bash_history
+.zsh_history
+history
+command_history.txt
+
+# ============================================================================
+# SCRIPTS DE TESTE PESSOAIS
+# ============================================================================
+
+test-*.sh
+debug-*.sh
+local-test/
+personal-scripts/
+
+# ============================================================================
+# ARQUIVOS DE TESTE E DESENVOLVIMENTO
+# ============================================================================
+
+test-output/
+test-results/
+coverage/
+*.test.yaml
+*.dev.yaml
+mock-*.yaml
+
+# ============================================================================
+# ARQUIVOS DE CONFIGURAÇÃO PESSOAL
+# ============================================================================
+
+argocd.local.conf
+config.local.yaml
+settings.local.json
+.localenv
+
+# ============================================================================
+# OUTPUTS DE DEBUG
+# ============================================================================
+
+debug-output.log
+stack-trace.log
+crash-dump.*
+saida-debug.log
+
+# ============================================================================
+# CERTIFICADOS AUTO-ASSINADOS GERADOS
+# ============================================================================
+
+*.self-signed.crt
+*.self-signed.key
+tls.crt
+tls.key
+
+# ============================================================================
+# ARQUIVOS DE LOCK
+# ============================================================================
+
+*.lock
+*.yml.lock
+Gemfile.lock
+package-lock.json
+yarn.lock
+
+# ============================================================================
+# ARQUIVOS COMPACTADOS
+# ============================================================================
+
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# ============================================================================
+# ARQUIVOS CRIADOS EM TEMPO DE EXECUÇÃO
+# ============================================================================
+
+*.pid
+*.sock
+*.socket
+*.port
+
+# ============================================================================
+# ARGOCD CONFIG (GERADO PELO LOGIN)
+# ============================================================================
+
+~/.config/argocd/
+.argocd/
+argocd-config.json
+
+################################################################################
+# EXCEÇÕES - O QUE NÃO DEVE SER IGNORADO
+################################################################################
+
+# Manter estes arquivos no repositório (remover linhas abaixo se necessário)
+!k8s-main/
+!k8s-remotes/
+!k8s-main/**
+!k8s-remotes/**
+!deploy-argocd.sh
+!README.md
+!.gitignore
+!.github/
+!LICENSE
+
+# Manter exemplos de configuração (sem credenciais reais)
+!examples/
+!docs/
