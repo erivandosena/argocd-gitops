@@ -21744,15 +21744,8 @@ metadata:
     app.kubernetes.io/name: argocd-notifications-controller
     app.kubernetes.io/part-of: argocd
   name: argocd-notifications-cm
+  
 ---
-# apiVersion: v1
-# kind: ConfigMap
-# metadata:
-#   labels:
-#     app.kubernetes.io/name: argocd-rbac-cm
-#     app.kubernetes.io/part-of: argocd
-#   name: argocd-rbac-cm
-
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -21762,38 +21755,78 @@ metadata:
     app.kubernetes.io/name: argocd-rbac-cm
     app.kubernetes.io/part-of: argocd
 data:
+  # ============================================================================
+  # ROLES - Defina uma única vez
+  # ============================================================================
+
+  # Role: Admin - acesso completo (menos criar contas)
+  # p, role:admin, <resource>, <action>, <object>, <effect>
+
+  # Role: Developer - criar/editar/sincronizar aplicações
+  # p, role:developer, <resource>, <action>, <object>, <effect>
+
+  # Role: ReadOnly - apenas visualizar
+  # p, role:read-only, <resource>, <action>, <object>, <effect>
+
   policy.csv: |
-    # Função admin com permissões completas, exceto criação de contas
+    ###########################################################################
+    # ROLE DEFINITIONS
+    ###########################################################################
+
+    # Role: admin (completo, exceto criar contas)
+    # p, role:admin, <resource>, <action>, <object>, <effect>
     p, role:admin, *, *, *, allow
     p, role:admin, accounts, create, *, deny
 
-    # Permitir gerenciamento de aplicativos e clusters para devuser
-    p, role:admin, applications, *, *, allow
-    p, role:admin, clusters, *, *, allow
-    p, role:admin, projects, *, *, allow
-    p, role:admin, repositories, *, *, allow
-    p, role:admin, extensions, invoke, */*, allow
+    # Role: developer (criar/editar/sincronizar aplicações)
+    # p, role:developer, <resource>, <action>, <object>, <effect>
+    p, role:developer, applications, get, */*, allow
+    p, role:developer, applications, create, */*, allow
+    p, role:developer, applications, update, */*, allow
+    p, role:developer, applications, delete, */*, allow
+    p, role:developer, applications, sync, */*, allow
+    p, role:developer, applications, override, */*, allow
+    p, role:developer, applications, action/*/run, */*, allow
+    p, role:developer, repositories, get, *, allow
+    p, role:developer, repositories, create, *, allow
+    p, role:developer, repositories, update, *, allow
+    p, role:developer, certificates, get, *, allow
+    p, role:developer, gpgkeys, get, *, allow
+    p, role:developer, accounts, update, *, allow
 
-    # Atribuir o papel admin ao devuser
-    g, devuser, role:admin
+    # Role: read-only (apenas visualizar)
+    # p, role:read-only, <resource>, <action>, <object>, <effect>
+    p, role:read-only, applications, get, */*, allow
+    p, role:read-only, repositories, get, *, allow
+    p, role:read-only, certificates, get, *, allow
+    p, role:read-only, gpgkeys, get, *, allow
 
-    # Permitir sincronização de aplicativos (necessário para pipelines)
-    p, role:admin, applications, sync, *, allow
+    ###########################################################################
+    # USER TO ROLE MAPPINGS (g = grouping)
+    ###########################################################################
 
-    # Permitir que devuser sincronize aplicativos
-    p, devuser, applications, get, *, allow
-    p, devuser, applications, sync, *, allow
-    p, devuser, applications, update, *, allow
+    # Admin user (nativo do ArgoCD)
+    g, admin, role:admin
 
-    # Garantir que devuser possa acessar projetos, clusters e repositórios
-    p, devuser, projects, get, *, allow
-    p, devuser, clusters, get, *, allow
-    p, devuser, repositories, get, *, allow
+    # Desenvolvedor (role:developer - sem admin)
+    g, devuser, role:developer
 
-  # Definir a função padrão para usuários autenticados como 'readonly'
-  policy.default: role:readonly
+    # Adicione mais usuários aqui conforme necessário:
+    # g, user2, role:developer
+    # g, user3, role:read-only
 
+  # ============================================================================
+  # DEFAULT POLICY FOR AUTHENTICATED USERS
+  # ============================================================================
 
+  # Usuários sem role atribuído terão esta role padrão
+  policy.default: 'role:read-only'
+
+  # ============================================================================
+  # SCOPES - Define permissões por namespace/projeto (opcional)
+  # ============================================================================
+  # scopes: '[repositories, clusters, namespaces]'
+  
 ---
 apiVersion: v1
 data:
