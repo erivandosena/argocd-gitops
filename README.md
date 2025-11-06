@@ -6,8 +6,6 @@ Automação para instalação, configuração e gerenciamento de ArgoCD em ambie
 
 ![ArgoCD](https://argo-cd.readthedocs.io/en/stable/assets/argocd_architecture.png)
 
----
-
 ## 📋 Índice
 
 - [Sobre](#sobre)
@@ -19,8 +17,6 @@ Automação para instalação, configuração e gerenciamento de ArgoCD em ambie
 - [Fluxo de Trabalho](#fluxo-de-trabalho)
 - [Troubleshooting](#troubleshooting)
 - [Contribuição](#contribuição)
-
----
 
 ## 🎯 Sobre
 
@@ -34,8 +30,6 @@ Script automatizado para gerenciamento completo de **ArgoCD v2.13.3** em ambient
 -  ✓  **Backup automático** antes de desinstalar
 -  ✓  **Logs estruturados** em tempo real
 -  ✓  **GitOps distribuído** pronto para produção
-
----
 
 ## 📦 Requisitos
 
@@ -62,8 +56,6 @@ Script automatizado para gerenciamento completo de **ArgoCD v2.13.3** em ambient
 kubectl auth can-i create deployments --as=system:serviceaccount:argocd:argocd-server -n argocd
 kubectl auth can-i create secrets --as=system:serviceaccount:argocd:argocd-server -n argocd
 ```
-
----
 
 ## 🏗️ Arquitetura
 
@@ -97,8 +89,6 @@ kubectl auth can-i create secrets --as=system:serviceaccount:argocd:argocd-serve
 └─────────────────────────────────────────────────────────────┘
 
 ```
-
----
 
 ## 🚀 Instalação
 
@@ -180,85 +170,91 @@ kubectl config get-contexts
 # [SUCCESS] Cluster 'cluster-c1' registrado com sucesso
 ```
 
----
-
 ## 📖 Uso
 
 ### Comandos Disponíveis
 
-#### Instalação
+#### Instalação do zero
 
-```sh
-# Instalar ArgoCD no cluster MAIN
+```bash
+# 1. Instalar MAIN
+./deploy-argocd.sh install-main kubernetes-admin@kubernetes # (nome do contexto do K8S)
 
-./deploy-argocd.sh install-main kubernetes-admin@kubernetes
-
-# Instalar componentes no cluster REMOTE
-
+# 2. Instalar REMOTE
 ./deploy-argocd.sh install-remote kubernetes-admin@kubernetes
-```
 
-#### Desinstalação
-
-```sh
-# Desinstalar ArgoCD do MAIN (com backup automático)
-
-./deploy-argocd.sh uninstall-main kubernetes-admin@kubernetes
-
-# Remover componentes do REMOTE
-
-./deploy-argocd.sh uninstall-remote kubernetes-admin@kubernetes
-```
-
-#### Gerenciamento de Clusters
-
-```sh
-# Registrar novo cluster remoto
-
-./deploy-argocd.sh register-cluster <remote-context> <cluster-name>
-
-# Exemplo:
-
-./deploy-argocd.sh register-cluster kubernetes-admin@cluster-c1 cluster-c1
-
-# Verificar clusters registrados
-
-./deploy-argocd.sh check-clusters kubernetes-admin@kubernetes
-```
-
-#### Credenciais e Login
-
-```sh
-# Mostrar credenciais de acesso
-
+# 3. Ver credenciais
 ./deploy-argocd.sh show-credentials kubernetes-admin@kubernetes
 
-# Fazer login via CLI (sem port-forward)
-
+# 4. Login CLI
 ./deploy-argocd.sh login-cli kubernetes-admin@kubernetes
 
-# Fazer login web (mostrar URL)
+# 5. Registrar cluster remoto
+./deploy-argocd.sh register-cluster kubernetes-admin@kubernetes cluster-c1 # (cluster K8S remoto)
 
-./deploy-argocd.sh login-web kubernetes-admin@kubernetes
-
-# Obter apenas a senha
-
-./deploy-argocd.sh get-admin-password kubernetes-admin@kubernetes
+# 6. Verificar status
+./deploy-argocd.sh check-status
 ```
 
-#### Diagnóstico
+#### Gerenciamento de usuários e tokens
 
-```sh
-# Status completo do ArgoCD
+```bash
+# 1. Criar usuário developer
+./deploy-argocd.sh create-user devuser Pass@2025! # (Senha do User)
 
+# 2. Listar usuários
+./deploy-argocd.sh list-users kubernetes-admin@kubernetes
+
+# 3. Gerar token permanente (para CI/CD)
+./deploy-argocd.sh generate-token devuser
+
+# 4. Gerar token com validade (1 hora)
+./deploy-argocd.sh generate-token devuser 3600
+
+# 5. Listar tokens do usuário
+./deploy-argocd.sh list-tokens devuser
+
+# 6. Alterar senha
+./deploy-argocd.sh change-password devuser NewPass@2025^~
+```
+
+#### Backup e recuperação (DR
+```bash
+# 1. Fazer backup regular
+./deploy-argocd.sh backup
+
+# 2. Listar todos os backups
+./deploy-argocd.sh list-backups
+
+# 3. Restaurar do backup mais recente
+./deploy-argocd.sh restore ./backups/argocd-backup-20251105-143022.yaml
+
+# 4. Restaurar com contexto específico
+./deploy-argocd.sh restore ./backups/argocd-backup-20251105-143022.yaml kubernetes-admin@kubernetes
+
+# 5. Limpar backups com mais de 7 dias
+./deploy-argocd.sh delete-old-backups 7
+
+# 6. Limpar backups com mais de 30 dias
+./deploy-argocd.sh delete-old-backups 30
+```
+
+#### Verificação e diagnóstico:
+
+```bash
+# 1. Verificar status completo
 ./deploy-argocd.sh check-status
 
-# Verificar status do Ingress
+# 2. Verificar clusters
+./deploy-argocd.sh check-clusters kubernetes-admin@kubernetes
 
+# 3. Verificar Ingress
 ./deploy-argocd.sh check-ingress kubernetes-admin@kubernetes
 
-# Fazer backup de configuração
+# 4. Obter senha admin
+./deploy-argocd.sh get-admin-password kubernetes-admin@kubernetes
 
+# 5. Fazer backup
 ./deploy-argocd.sh backup
 ```
 
@@ -290,14 +286,12 @@ bash deploy-argocd.sh login-web kubernetes-admin@kubernetes
 bash deploy-argocd.sh check-status
 ```
 
----
-
 ## 📁 Estrutura do Projeto
 
 ```bash
 argocd-deployment/
 ├── README.md                                  \# Este arquivo
-├── deploy-argocd.sh                           \# Script principal (v2.0.0)
+├── deploy-argocd.sh                           \# Script principal (v1.0.0)
 ├── .gitignore                                 \# Arquivos ignorados
 │
 ├── k8s-main/                                  \# Manifests para MAIN (Cluster2)
@@ -323,7 +317,7 @@ argocd-deployment/
 ### Descrição dos Manifests
 
 | Arquivo | Propósito | Cluster |
-|---------|-----------|---------|
+|------|-----------|---------|
 | `0-namespace.yaml` | Criar namespace `argocd` | MAIN |
 | `1-application-crd-v2.13.3.yaml` | Instalar CRD Application (GitOps) | MAIN/REMOTE |
 | `2-install-argocd-v2.13.3.yaml` | Deployment ArgoCD Server | MAIN |
@@ -332,8 +326,6 @@ argocd-deployment/
 | `5-install-optional-k8s-onpremises.yaml` | Ingress HTTPS + TLS | MAIN |
 | `1-argocd-cluster-access.yaml` | ServiceAccount para cluster remoto | REMOTE |
 | `2-argocd-remote-cluster-access.yaml` | ClusterRole para gerenciamento | REMOTE |
-
----
 
 ## 🔄 Fluxo de Trabalho
 
@@ -415,8 +407,6 @@ kubectl --context=kubernetes-admin@kubernetes get nodes
 
 ```
 
----
-
 ## 🔐 Acesso
 
 ### Via Ingress HTTPS
@@ -464,8 +454,6 @@ argocd cluster list --grpc-web
 
 argocd app get <app-name> --grpc-web
 ```
-
----
 
 ## 🐛 Troubleshooting
 
@@ -543,30 +531,24 @@ kubectl config set-context kubernetes-admin@kubernetes \
 --user=kubernetes-admin
 ```
 
----
-
 ## 📊 Informações de Versão
 
 - **ArgoCD**: v2.13.3
 - **Kubernetes**: ≥ 1.24
-- **Script**: v2.0.0
+- **Script**: v1.0.0
 - **Data Release**: 2025-11-04
 
 ### Changelog
 
-#### v2.0.0 (2025-11-04)
+#### v1.0.0 (2025-11-04)
 -  ✓  Suporte automático a Ingress HTTPS
 -  ✓  Login via CLI sem port-forward
 -  ✓  Detecção automática de URL Ingress
 -  ✓  Registro de clusters com DNS interno
 -  ✓  Logs estruturados com stderr/stdout
-
-#### v1.0.0 (Inicial)
 -  ✓  Instalação MAIN (5 etapas)
 -  ✓  Instalação REMOTE (3 etapas)
 -  ✓  Registro de clusters automático
-
----
 
 ## 🤝 Contribuição
 
@@ -585,19 +567,13 @@ Contribuições são bem-vindas! Por favor:
 - Preservar padrões existentes
 - Testar em ambos clusters (MAIN e REMOTE)
 
----
-
 ## 📝 Licença
 
 Este projeto está licenciado sob a **MIT License** - veja o arquivo [LICENSE](LICENSE) para detalhes.
 
----
-
 ## 📧 Suporte
 
 Para suporte, abra uma [Issue](../../issues) ou envie um email para: `erivandosena@gmail.com`
-
----
 
 ## 🔗 Referências
 
