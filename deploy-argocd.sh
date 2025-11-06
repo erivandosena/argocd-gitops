@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ################################################################################
-# deploy-argocd.sh - ArgoCD v2.13.3 Deployment Automation
+# ArgoCD v2.13.3 Deployment Automation
 #
 # Versão: 1.0.0
 # Data: 20-01-2025
@@ -22,14 +22,14 @@
 #
 # ┌────────────────────────────────────────────────────────────────┐
 # │  PREPARAÇÃO: Ter ~/.kube/config com AMBOS contextos            │
-# │  - kubernetes-admin@kubernetes (Cluster2 MAIN - 10.130.1.2)          │
-# │  - kubernetes-admin@kubernetes (Cluster1 REMOTE - 10.130.0.45)       │
+# │  - kubernetes-admin@kubernetes (C2 MAIN)                       │
+# │  - kubernetes-admin@kubernetes (C1 REMOTE)                     │
 # └────────────────────────────────────────────────────────────────┘
 #            ↓
 # ┌────────────────────────────────────────────────────────────────┐
-# │  ETAPA 1: Instalar ArgoCD no MAIN (Cluster2)                         │
+# │  ETAPA 1: Instalar ArgoCD no MAIN (C2)                         │
 # │  $ ./deploy-argocd.sh install-main kubernetes-admin@kubernetes │
-# │                                                                 │
+# │                                                                │
 # │  Instala 5 componentes em ordem:                               │
 # │  1. Application CRD (v2.13.3)                                  │
 # │  2. Namespace argocd                                           │
@@ -39,9 +39,9 @@
 # └────────────────────────────────────────────────────────────────┘
 #            ↓
 # ┌────────────────────────────────────────────────────────────────┐
-# │  ETAPA 2: Instalar componentes no REMOTE (Cluster1)                  │
+# │  ETAPA 2: Instalar componentes no REMOTE (C1)                  │
 # │  $ ./deploy-argocd.sh install-remote kubernetes-admin@kubern.. │
-# │                                                                 │
+# │                                                                │
 # │  Instala 3 componentes em ordem:                               │
 # │  1. Application CRD                                            │
 # │  2. argocd-manager (ServiceAccount + ClusterRole)              │
@@ -51,45 +51,43 @@
 # ┌────────────────────────────────────────────────────────────────┐
 # │  ETAPA 3: Obter Credenciais (via Ingress)                      │
 # │  $ ./deploy-argocd.sh show-credentials kubernetes-admin@kubern │
-# │                                                                 │
+# │                                                                │
 # │  Retorna: Usuário, Senha, URL (Ingress)                        │
 # │  Senha: Gerada automaticamente pelo ArgoCD                     │
-# │  URL: https://argocd.domain.com.br (via Ingress já existente)  │
 # └────────────────────────────────────────────────────────────────┘
 #            ↓
 # ┌────────────────────────────────────────────────────────────────┐
-# │  ETAPA 4: Registrar Cluster1 no ArgoCD de Cluster2                         │
+# │  ETAPA 4: Registrar C1 no ArgoCD de C2                         │
 # │  $ ./deploy-argocd.sh register-cluster \                       │
 # │      kubernetes-admin@kubernetes cluster-c1                    │
-# │                                                                 │
+# │                                                                │
 # │  O que acontece internamente:                                  │
 # │  1. Detecta Ingress automaticamente                            │
 # │  2. Faz login no ArgoCD via CLI (sem port-forward)             │
-# │  3. Extrai credenciais de Cluster1 do kubeconfig                     │
-# │  4. Cria um secret em Cluster2 MAIN                                  │
-# │  5. Registra Cluster1 como cluster gerenciável                       │
+# │  3. Extrai credenciais de C1 do kubeconfig                     │
+# │  4. Cria um secret em C2 MAIN                                  │
+# │  5. Registra C1 como cluster gerenciável                       │
 # │  6. Verifica conectividade bidirecional                        │
 # └────────────────────────────────────────────────────────────────┘
 #            ↓
 # ┌────────────────────────────────────────────────────────────────┐
 # │  RESULTADO FINAL                                               │
-# │  Cluster2 MAIN: ArgoCD Server operacional                         │
-# │  Cluster1 REMOTE: Pronto para gerenciamento                       │
-# │  UI: Acessível via Ingress (https://argocd.domain.com.br)   │
-# │  Multi-cluster: Pronto para GitOps distribuído              │
+# │  C2 MAIN: ArgoCD Server operacional                            │
+# │  C1 REMOTE: Pronto para gerenciamento                          │
+# │  Multi-cluster: Pronto para GitOps distribuído                 │
 # └────────────────────────────────────────────────────────────────┘
 #
 ################################################################################
 #
-# COMANDOS DISPONÍVEIS:
+# PRINCIPAIS COMANDOS DISPONÍVEIS:
 #
 # INSTALAÇÃO:
 #   install-main <contexto>
-#     Instalar ArgoCD MAIN com 5 etapas (inclui Ingress)
+#     Instalar ArgoCD MAIN
 #     Ex: ./deploy-argocd.sh install-main kubernetes-admin@kubernetes
 #
 #   install-remote <contexto>
-#     Instalar componentes REMOTE com 3 etapas
+#     Instalar componentes REMOTE
 #     Ex: ./deploy-argocd.sh install-remote kubernetes-admin@kubernetes
 #
 # DESINSTALAÇÃO:
@@ -162,38 +160,24 @@
 #
 ################################################################################
 #
-# ESTRUTURA DE DIRETÓRIOS ESPERADA:
-#
-# ./
-# ├── deploy-argocd.sh (instalador)
-# ├── k8s-main/
-# │   ├── 0-namespace.yaml
-# │   ├── 1-application-crd-v2.13.3.yaml
-# │   ├── 2-install-argocd-v2.13.3.yaml
-# │   ├── 3-core-install-v2.13.3.yaml
-# │   ├── 4-gitlab-runner-role.yaml
-# │   └── 5-install-optional-k8s-onpremises.yaml (com Ingress)
-# ├── k8s-remotes/
-# │   ├── 0-application-crd-v2.13.3.yaml
-# │   ├── 1-argocd-cluster-access.yaml
-# │   └── 2-argocd-remote-cluster-access.yaml
-# ├── logs/
-# │   └── deploy.log
-# └── backups/
-#     └── argocd-backup-*.yaml
-#
-################################################################################
-#
 # NOTES:
 # - Todas as funções registram logs em ./logs/deploy.log
 # - Backups são salvos automaticamente em ./backups/
 # - Suporta remoção com confirmação interativa
-# - Detecta e cria port-forward automaticamente se necessário
-# - Valida contextosen kubeconfig antes de qualquer operação
+# - Valida contextos em kubeconfig antes de qualquer operação
 #
 ################################################################################
 
 set -e
+
+# URL DO ARGOCD (PARAMETRIZAÇÃO)
+ARGOCD_SERVER="${ARGOCD_SERVER:-argocd.domain.com.br}"
+
+# Namespace padrão
+ARGOCD_NAMESPACE="argocd"
+
+# Contexto padrão
+DEFAULT_CONTEXT="kubernetes-admin@kubernetes"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST_MAIN_DIR="${SCRIPT_DIR}/k8s-main"
@@ -447,13 +431,13 @@ wait_pods() {
 }
 
 # ============================================================================
-# INSTALAÇÃO MAIN (5 ETAPAS - CORRIGIDA)
+# INSTALAÇÃO MAIN
 # ============================================================================
 
 install_main() {
     local context=$1
     log_info "════════════════════════════════════════════════════════════════"
-    log_info "INSTALAÇÃO MAIN: $context (5 ETAPAS)"
+    log_info "INSTALAÇÃO MAIN: $context "
     log_info "════════════════════════════════════════════════════════════════"
 
     validate_kubeconfig "$context" || return 1
@@ -577,7 +561,7 @@ uninstall_main() {
 }
 
 # ============================================================================
-# INSTALAÇÃO REMOTO (3 ETAPAS)
+# INSTALAÇÃO REMOTO
 # ============================================================================
 
 install_remote() {
@@ -774,10 +758,10 @@ argocd_login_cli() {
     log_success "Senha obtida (${#senha} caracteres)"
 
     # Fazer login
-    log_info "Fazendo login em: argocd.domain.com.br"
+    log_info "Fazendo login em: $ARGOCD_SERVER"
 
     local login_output
-    login_output=$(argocd login "argocd.domain.com.br" \
+    login_output=$(argocd login "$ARGOCD_SERVER" \
         --username admin \
         --password "$senha" \
         --insecure \
@@ -800,6 +784,514 @@ argocd_login_cli() {
         log_error "❌ Falha no login"
         log_error "Erro: $login_output"
         log_error "════════════════════════════════════════════════════════════════"
+        return 1
+    fi
+}
+
+# ============================================================================
+# CRIAR USUÁRIO
+# ============================================================================
+
+create_argocd_user() {
+    local username=${1:-""}
+    local password=${2:-""}
+    local context=${3:-"kubernetes-admin@kubernetes"}
+
+    if [ -z "$username" ] || [ -z "$password" ]; then
+        log_error "Uso: create_argocd_user <username> <password> [context]"
+        log_info "Exemplo: ./deploy-argocd.sh create-user devuser pass@user2025"
+        return 1
+    fi
+
+    log_info "════════════════════════════════════════════════════════════════"
+    log_info "Criar Novo Usuário ArgoCD (role:developer)"
+    log_info "════════════════════════════════════════════════════════════════"
+
+    kubectl config use-context "$context" || return 1
+
+    # 1. Obter senha do admin
+    log_info "Obtendo credenciais de admin..."
+    local admin_pass=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d 2>/dev/null)
+
+    if [ -z "$admin_pass" ]; then
+        log_error "Não foi possível obter senha do admin"
+        return 1
+    fi
+
+    log_success "Credenciais obtidas"
+    echo ""
+
+    # 2. Fazer login como admin
+    log_info "Fazendo login como admin..."
+    if ! argocd login "$ARGOCD_SERVER" \
+        --username admin \
+        --password "$admin_pass" \
+        --insecure \
+        --grpc-web 2>&1 >/dev/null; then
+        log_error "Falha ao fazer login como admin"
+        return 1
+    fi
+
+    log_success "Login realizado"
+    echo ""
+
+    # 3. Obter política ATUAL
+    log_info "Obtendo política RBAC atual..."
+
+    local current_policy=$(kubectl get configmap argocd-rbac-cm -n argocd -o jsonpath='{.data.policy\.csv}' 2>/dev/null)
+
+    if [ -z "$current_policy" ]; then
+        log_error "ConfigMap argocd-rbac-cm não encontrado"
+        return 1
+    fi
+
+    log_success "Política obtida"
+    echo ""
+
+    # 4. Verificar se usuário já existe
+    log_info "Verificando se usuário '$username' já existe..."
+
+    if echo "$current_policy" | grep -q "^g, $username,"; then
+        log_error "Usuário '$username' já existe na política RBAC"
+        return 1
+    fi
+
+    log_success "Usuário não existe, prosseguindo..."
+    echo ""
+
+    # 5. Adicionar usuário à política
+    log_info "Adicionando '$username' com role:developer..."
+
+    local new_policy="$current_policy"$'\n'"    g, $username, role:developer"
+
+    # Patch apenas a linha nova
+    if ! kubectl patch configmap argocd-rbac-cm -n argocd --type merge \
+        -p "{\"data\":{\"policy.csv\":$(echo "$new_policy" | jq -Rs .)}}" 2>&1 >/dev/null; then
+        log_error "Falha ao atualizar RBAC"
+        return 1
+    fi
+
+    log_success "Usuário adicionado à RBAC"
+    echo ""
+
+    # 6. Criar usuário no ConfigMap argocd-cm
+    log_info "Criando usuário '$username' em argocd-cm..."
+
+    if ! kubectl patch configmap argocd-cm -n argocd --type merge \
+        -p "{\"data\":{\"accounts.$username\":\"apiKey,login\"}}" 2>&1 >/dev/null; then
+        log_error "Falha ao criar usuário no ConfigMap"
+        return 1
+    fi
+
+    log_success "Usuário criado"
+    echo ""
+
+    # 7. Reiniciar ArgoCD
+    log_info "Reiniciando ArgoCD Server..."
+    kubectl rollout restart deployment/argocd-server -n argocd 2>&1 >/dev/null
+    kubectl rollout status deployment/argocd-server -n argocd --timeout=5m 2>&1 >/dev/null
+
+    log_success "ArgoCD reiniciado"
+    echo ""
+
+    # 8. Definir senha
+    log_info "Definindo senha do usuário '$username'..."
+    sleep 5
+
+    argocd login "$ARGOCD_SERVER" \
+        --username admin \
+        --password "$admin_pass" \
+        --insecure \
+        --grpc-web 2>&1 >/dev/null
+
+    if argocd account update-password \
+        --account "$username" \
+        --new-password "$password" \
+        --current-password "$admin_pass" \
+        --grpc-web 2>&1 >/dev/null; then
+        log_success "✓ Senha definida com sucesso"
+    else
+        log_error "Falha ao definir senha"
+        return 1
+    fi
+
+    echo ""
+    log_success "════════════════════════════════════════════════════════════════"
+    log_success "✓ Usuário criado com sucesso!"
+    log_success "════════════════════════════════════════════════════════════════"
+    log_info "Username: $username"
+    log_info "Role: developer"
+    log_info "URL: https://$ARGOCD_SERVER"
+    log_success "════════════════════════════════════════════════════════════════"
+
+    return 0
+}
+
+# ============================================================================
+# ALTERAR SENHA
+# ============================================================================
+
+change_argocd_password() {
+    local username=${1:-""}
+    local new_password=${2:-""}
+    local context=${3:-"kubernetes-admin@kubernetes"}
+
+    if [ -z "$username" ] || [ -z "$new_password" ]; then
+        log_error "Uso: change_argocd_password <username> <new_password> [context]"
+        log_info "Exemplo: ./deploy-argocd.sh change-password devuser NewPass@2025"
+        return 1
+    fi
+
+    log_info "════════════════════════════════════════════════════════════════"
+    log_info "Alterar Senha do Usuário"
+    log_info "════════════════════════════════════════════════════════════════"
+
+    kubectl config use-context "$context" || return 1
+
+    # 1. Obter senha admin
+    log_info "Obtendo credenciais de admin..."
+    local admin_pass=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d 2>/dev/null)
+
+    if [ -z "$admin_pass" ]; then
+        log_error "Não foi possível obter senha do admin"
+        return 1
+    fi
+
+    log_success "Credenciais obtidas"
+    echo ""
+
+    # 2. Fazer login
+    log_info "Fazendo login como admin..."
+    if ! argocd login "$ARGOCD_SERVER" \
+        --username admin \
+        --password "$admin_pass" \
+        --insecure \
+        --grpc-web 2>&1 >/dev/null; then
+        log_error "Falha ao fazer login"
+        return 1
+    fi
+
+    log_success "Login realizado"
+    echo ""
+
+    # 3. Verificar se usuário existe
+    log_info "Verificando se usuário '$username' existe..."
+
+    if ! argocd account list --grpc-web 2>&1 | grep -q "$username"; then
+        log_error "Usuário '$username' não encontrado"
+        return 1
+    fi
+
+    log_success "Usuário encontrado"
+    echo ""
+
+    # 4. Alterar senha
+    log_info "Alterando senha de '$username'..."
+
+    if argocd account update-password \
+        --account "$username" \
+        --new-password "$new_password" \
+        --current-password "$admin_pass" \
+        --grpc-web 2>&1 >/dev/null; then
+
+        log_success "✓ Senha alterada com sucesso"
+        echo ""
+        log_success "════════════════════════════════════════════════════════════════"
+        log_info "Username: $username"
+        log_info "Nova senha definida com sucesso"
+        log_success "════════════════════════════════════════════════════════════════"
+        return 0
+    else
+        log_error "Falha ao alterar senha"
+        return 1
+    fi
+}
+
+# ============================================================================
+# LISTAR USUÁRIOS COM ROLES
+# ============================================================================
+
+list_argocd_users() {
+    local context=${1:-"kubernetes-admin@kubernetes"}
+
+    log_info "════════════════════════════════════════════════════════════════"
+    log_info "Usuários e Roles do ArgoCD"
+    log_info "════════════════════════════════════════════════════════════════"
+
+    kubectl config use-context "$context" || return 1
+
+    # 1. Obter senha admin
+    log_info "Obtendo credenciais..."
+    local admin_pass=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d 2>/dev/null)
+
+    if [ -z "$admin_pass" ]; then
+        log_error "Não foi possível obter credenciais"
+        return 1
+    fi
+
+    # 2. Fazer login
+    argocd login "$ARGOCD_SERVER" \
+        --username admin \
+        --password "$admin_pass" \
+        --insecure \
+        --grpc-web 2>&1 >/dev/null
+
+    echo ""
+    log_info "Usuários registrados:"
+    echo ""
+    argocd account list --grpc-web
+
+    echo ""
+    log_info "════════════════════════════════════════════════════════════════"
+    log_info "Roles RBAC configuradas:"
+    log_info "════════════════════════════════════════════════════════════════"
+    echo ""
+
+    kubectl get configmap argocd-rbac-cm -n argocd -o jsonpath='{.data.policy\.csv}' | \
+        grep "^g," | \
+        awk '{print "  " $0}'
+
+    echo ""
+    log_success "════════════════════════════════════════════════════════════════"
+
+    return 0
+}
+
+generate_argocd_token() {
+    local username=${1:-""}
+    local expiration=${2:-""}
+    local context=${3:-"kubernetes-admin@kubernetes"}
+
+    if [ -z "$username" ]; then
+        log_error "Uso: generate_argocd_token <username> [expiration_seconds] [context]"
+        log_info "Exemplos:"
+        log_info "  - Token permanente: ./deploy-argocd.sh generate-token devuser"
+        log_info "  - Token válido 1h: ./deploy-argocd.sh generate-token devuser 3600"
+        return 1
+    fi
+
+    log_info "════════════════════════════════════════════════════════════════"
+    log_info "Gerar Token ArgoCD para CI/CD Pipeline"
+    log_info "════════════════════════════════════════════════════════════════"
+
+    kubectl config use-context "$context" || return 1
+
+    # 1. Obter senha admin
+    log_info "Obtendo credenciais de admin..."
+    local admin_pass=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d 2>/dev/null)
+
+    if [ -z "$admin_pass" ]; then
+        log_error "Não foi possível obter senha do admin"
+        return 1
+    fi
+
+    log_success "Credenciais obtidas"
+    echo ""
+
+    # 2. Fazer login como admin
+    log_info "Fazendo login como admin..."
+    if ! argocd login "$ARGOCD_SERVER" \
+        --username admin \
+        --password "$admin_pass" \
+        --insecure \
+        --grpc-web 2>&1 >/dev/null; then
+        log_error "Falha ao fazer login como admin"
+        return 1
+    fi
+
+    log_success "Login realizado"
+    echo ""
+
+    # 3. Verificar se usuário existe
+    log_info "Verificando se usuário '$username' existe..."
+
+    if ! argocd account list --grpc-web 2>&1 | grep -q "^$username"; then
+        log_error "Usuário '$username' não encontrado"
+        return 1
+    fi
+
+    log_success "Usuário encontrado"
+    echo ""
+
+    # 4. Gerar token
+    log_info "Gerando token para '$username'..."
+
+    local token
+    if [ -n "$expiration" ] && [ "$expiration" -gt 0 ]; then
+        log_info "Validade: $expiration segundos ($(($expiration / 3600)) horas)"
+        token=$(argocd account generate-token --account "$username" \
+            --expiration "$expiration" \
+            --grpc-web 2>&1)
+    else
+        log_info "Validade: permanente (até revogação)"
+        token=$(argocd account generate-token --account "$username" \
+            --grpc-web 2>&1)
+    fi
+
+    # Verificar se token foi gerado (extrair apenas o token, sem logs)
+    token=$(echo "$token" | grep -v "^INFO\|^WARNING\|^ERROR\|^DEBUG\|^\[" | tail -1)
+
+    if [ -z "$token" ] || echo "$token" | grep -q "error"; then
+        log_error "Falha ao gerar token"
+        return 1
+    fi
+
+    echo ""
+    log_success "════════════════════════════════════════════════════════════════"
+    log_success "✓ Token gerado com sucesso!"
+    log_success "════════════════════════════════════════════════════════════════"
+    log_info "Username: $username"
+    if [ -n "$expiration" ] && [ "$expiration" -gt 0 ]; then
+        local hours=$((expiration / 3600))
+        local minutes=$(((expiration % 3600) / 60))
+        log_info "Válido por: ${hours}h ${minutes}m"
+    else
+        log_info "Válido até: revogação manual"
+    fi
+    echo ""
+    log_info "Token (ARGOCD_TOKEN):"
+    echo ""
+    echo "$token"
+    echo ""
+    log_warning "════════════════════════════════════════════════════════════════"
+    log_warning "⚠️  IMPORTANTE:"
+    log_warning "  • Copie e armazene em local seguro"
+    log_warning "  • NUNCA commitar em Git"
+    log_warning "  • Armazenar em CI/CD Secrets"
+    log_warning "  • Rotacionar periodicamente"
+    log_warning "════════════════════════════════════════════════════════════════"
+
+    # Salvar em arquivo local com permissões restritas
+    local token_file="${HOME}/.argocd/${username}-token.txt"
+    mkdir -p "${HOME}/.argocd"
+
+    if echo "$token" > "$token_file" 2>/dev/null; then
+        chmod 600 "$token_file"
+        log_success "Token salvo em: $token_file (permissões 600)"
+    fi
+
+    return 0
+}
+
+# ============================================================================
+# LISTAR TOKENS ARGOCD
+# ============================================================================
+
+list_argocd_tokens() {
+    local username=${1:-""}
+    local context=${2:-"kubernetes-admin@kubernetes"}
+
+    if [ -z "$username" ]; then
+        log_error "Uso: list_argocd_tokens <username> [context]"
+        log_info "Exemplo: ./deploy-argocd.sh list-tokens devuser"
+        return 1
+    fi
+
+    log_info "════════════════════════════════════════════════════════════════"
+    log_info "Listar Tokens ArgoCD"
+    log_info "════════════════════════════════════════════════════════════════"
+
+    kubectl config use-context "$context" || return 1
+
+    # 1. Obter senha admin
+    log_info "Obtendo credenciais de admin..."
+    local admin_pass=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d 2>/dev/null)
+
+    if [ -z "$admin_pass" ]; then
+        log_error "Não foi possível obter senha do admin"
+        return 1
+    fi
+
+    log_success "Credenciais obtidas"
+    echo ""
+
+    # 2. Fazer login
+    log_info "Fazendo login como admin..."
+    if ! argocd login "$ARGOCD_SERVER" \
+        --username admin \
+        --password "$admin_pass" \
+        --insecure \
+        --grpc-web 2>&1 >/dev/null; then
+        log_error "Falha ao fazer login"
+        return 1
+    fi
+
+    log_success "Login realizado"
+    echo ""
+
+    # 3. Listar informações do usuário (inclui tokens)
+    log_info "Informações de '$username':"
+    echo ""
+
+    argocd account get --account "$username" --grpc-web
+
+    echo ""
+    log_success "════════════════════════════════════════════════════════════════"
+
+    return 0
+}
+
+# ============================================================================
+# REVOGAR TOKEN ARGOCD (POR ID)
+# ============================================================================
+
+revoke_argocd_token() {
+    local username=${1:-""}
+    local token_id=${2:-""}
+    local context=${3:-"kubernetes-admin@kubernetes"}
+
+    if [ -z "$username" ] || [ -z "$token_id" ]; then
+        log_error "Uso: revoke_argocd_token <username> <token_id> [context]"
+        log_info "Exemplo: ./deploy-argocd.sh revoke-token devuser token-123"
+        log_info ""
+        log_info "Para listar tokens:"
+        log_info "  ./deploy-argocd.sh list-tokens devuser"
+        return 1
+    fi
+
+    log_info "════════════════════════════════════════════════════════════════"
+    log_info "Revogar Token ArgoCD"
+    log_info "════════════════════════════════════════════════════════════════"
+
+    kubectl config use-context "$context" || return 1
+
+    # 1. Obter senha admin
+    log_info "Obtendo credenciais de admin..."
+    local admin_pass=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d 2>/dev/null)
+
+    if [ -z "$admin_pass" ]; then
+        log_error "Não foi possível obter senha do admin"
+        return 1
+    fi
+
+    log_success "Credenciais obtidas"
+    echo ""
+
+    # 2. Fazer login
+    log_info "Fazendo login como admin..."
+    if ! argocd login "$ARGOCD_SERVER" \
+        --username admin \
+        --password "$admin_pass" \
+        --insecure \
+        --grpc-web 2>&1 >/dev/null; then
+        log_error "Falha ao fazer login"
+        return 1
+    fi
+
+    log_success "Login realizado"
+    echo ""
+
+    # 3. Revogar token
+    log_info "Revogando token ID '$token_id' de '$username'..."
+
+    if argocd account revoke-token --account "$username" --id "$token_id" --grpc-web 2>&1 >/dev/null; then
+        echo ""
+        log_success "════════════════════════════════════════════════════════════════"
+        log_success "✓ Token revogado com sucesso!"
+        log_success "════════════════════════════════════════════════════════════════"
+        return 0
+    else
+        log_error "Falha ao revogar token"
         return 1
     fi
 }
@@ -945,9 +1437,9 @@ try_argocd_login() {
         return 1
     fi
 
-    log_info "Tentando fazer login no ArgoCD em: https://argocd.domain.com.br" >&2
+    log_info "Tentando fazer login no ArgoCD em: https://$ARGOCD_SERVER" >&2
 
-    if argocd login "argocd.domain.com.br" \
+    if argocd login "$ARGOCD_SERVER" \
         --username admin \
         --password "$senha" \
         --insecure \
@@ -1038,16 +1530,16 @@ check_status() {
 
     log_info "=== Clusters Registrados (via ArgoCD CLI) ==="
 
-    # OBTER SENHA ANTES (sem logs misturados)
+    # OBTER SENHA ANTES
     local senha
     senha=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d 2>/dev/null) || senha=""
 
     if [ -n "$senha" ]; then
-        log_info "Tentando fazer login no ArgoCD em: https://argocd.domain.com.br"
+        log_info "Tentando fazer login no ArgoCD em: https://$ARGOCD_SERVER"
 
-        # GUARDAR SAÍDA LIMPA (sem logs)
+        # GUARDAR SAÍDA LIMPA
         local login_output
-        login_output=$(argocd login "argocd.domain.com.br" \
+        login_output=$(argocd login "$ARGOCD_SERVER" \
             --username admin \
             --password "$senha" \
             --insecure \
@@ -1111,16 +1603,221 @@ check_status() {
     log_success "════════════════════════════════════════════════════════════════"
 }
 
-export_config() {
-    local timestamp=$(date +%Y%m%d_%H%M%S)
-    local backup_file="$BACKUP_DIR/argocd-backup-${timestamp}.yaml"
-    log_info "Exportando..."
-    if argocd admin export --namespace argocd > "$backup_file" 2>&1; then
-        log_success "Backup: $backup_file"
-    else
-        log_error "Falha"
+# ============================================================================
+# FAZER BACKUP ARGOCD (EXPORT)
+# ============================================================================
+
+backup_argocd() {
+    local context=${1:-"kubernetes-admin@kubernetes"}
+
+    log_info "════════════════════════════════════════════════════════════════"
+    log_info "Fazer Backup ArgoCD"
+    log_info "════════════════════════════════════════════════════════════════"
+
+    kubectl config use-context "$context" || return 1
+
+    # 1. Validar namespace
+    log_info "Validando namespace argocd..."
+    if ! kubectl get namespace argocd 2>&1 >/dev/null; then
+        log_error "Namespace argocd não encontrado"
         return 1
     fi
+
+    log_success "Namespace encontrado"
+    echo ""
+
+    # 2. Gerar nome do backup
+    local backup_file="${BACKUP_DIR}/argocd-backup-$(date +%Y%m%d-%H%M%S).yaml"
+    mkdir -p "$BACKUP_DIR"
+
+    log_info "Exportando configuração ArgoCD..."
+    log_info "Arquivo: $backup_file"
+    echo ""
+
+    # 3. Fazer export
+    if argocd admin export --namespace argocd --grpc-web > "$backup_file" 2>&1; then
+        local size=$(du -h "$backup_file" | cut -f1)
+        log_success "✓ Backup criado com sucesso"
+        log_info "Tamanho: $size"
+        echo ""
+        log_success "════════════════════════════════════════════════════════════════"
+        log_info "Arquivo: $(basename "$backup_file")"
+        log_info "Caminho completo: $backup_file"
+        log_success "════════════════════════════════════════════════════════════════"
+        return 0
+    else
+        log_error "Falha ao criar backup"
+        return 1
+    fi
+}
+
+# ============================================================================
+# RESTAURAR BACKUP ARGOCD (IMPORT)
+# ============================================================================
+
+restore_argocd_backup() {
+    local backup_file=${1:-""}
+    local context=${2:-"kubernetes-admin@kubernetes"}
+
+    if [ -z "$backup_file" ]; then
+        log_error "Uso: restore_argocd_backup <backup_file> [context]"
+        log_info "Exemplo: ./deploy-argocd.sh restore ./backups/argocd-backup-20251105.yaml"
+        return 1
+    fi
+
+    if [ ! -f "$backup_file" ]; then
+        log_error "Arquivo de backup não encontrado: $backup_file"
+        return 1
+    fi
+
+    log_info "════════════════════════════════════════════════════════════════"
+    log_info "Restaurar ArgoCD do Backup"
+    log_info "════════════════════════════════════════════════════════════════"
+
+    kubectl config use-context "$context" || return 1
+
+    # 1. Validar contexto
+    log_info "Validando contexto..."
+    if ! kubectl get namespace argocd 2>&1 >/dev/null; then
+        log_error "Namespace argocd não encontrado"
+        return 1
+    fi
+
+    log_success "Namespace argocd encontrado"
+    echo ""
+
+    # 2. Mostrar informações do backup
+    log_info "Informações do backup:"
+    log_info "Arquivo: $(basename "$backup_file")"
+    log_info "Tamanho: $(du -h "$backup_file" | cut -f1)"
+    echo ""
+
+    # 3. Criar backup de segurança
+    log_warning "⚠️  Criando backup preventivo antes da restauração..."
+    local safety_backup="${BACKUP_DIR}/argocd-backup-before-restore-$(date +%Y%m%d-%H%M%S).yaml"
+
+    if argocd admin export --namespace argocd --grpc-web > "$safety_backup" 2>&1; then
+        log_success "Backup de segurança criado"
+    fi
+    echo ""
+
+    # 4. Obter senha admin
+    log_info "Obtendo credenciais de admin..."
+    local admin_pass=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d 2>/dev/null)
+
+    if [ -z "$admin_pass" ]; then
+        log_error "Não foi possível obter senha do admin"
+        return 1
+    fi
+
+    log_success "Credenciais obtidas"
+    echo ""
+
+    # 5. Fazer login
+    log_info "Fazendo login como admin..."
+    if ! argocd login "$ARGOCD_SERVER" \
+        --username admin \
+        --password "$admin_pass" \
+        --insecure \
+        --grpc-web 2>&1 >/dev/null; then
+        log_error "Falha ao fazer login"
+        return 1
+    fi
+
+    log_success "Login realizado"
+    echo ""
+
+    # 6. Restaurar do backup
+    log_info "Restaurando configuração do backup..."
+
+    if argocd admin import "$backup_file" --namespace argocd --grpc-web 2>&1 >/dev/null; then
+        log_success "✓ Configuração restaurada com sucesso"
+    else
+        log_error "Falha ao restaurar do backup"
+        return 1
+    fi
+    echo ""
+
+    # 7. Reiniciar pods
+    log_info "Reiniciando pods do ArgoCD..."
+    kubectl rollout restart deployment/argocd-server -n argocd 2>&1 >/dev/null
+    kubectl rollout status deployment/argocd-server -n argocd --timeout=5m 2>&1 >/dev/null
+
+    log_success "Pods reiniciados"
+    echo ""
+
+    log_success "════════════════════════════════════════════════════════════════"
+    log_success "✓ Restauração concluída!"
+    log_success "════════════════════════════════════════════════════════════════"
+    log_info "Backup de segurança: $safety_backup"
+    log_success "════════════════════════════════════════════════════════════════"
+
+    return 0
+}
+
+# ============================================================================
+# LISTAR BACKUPS
+# ============================================================================
+
+list_backups() {
+    log_info "════════════════════════════════════════════════════════════════"
+    log_info "Backups Disponíveis"
+    log_info "════════════════════════════════════════════════════════════════"
+    echo ""
+
+    if [ ! -d "$BACKUP_DIR" ] || [ -z "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
+        log_warning "Nenhum backup encontrado em $BACKUP_DIR"
+        return 0
+    fi
+
+    log_info "Diretório: $BACKUP_DIR"
+    echo ""
+
+    ls -lhSr "$BACKUP_DIR"/*.yaml 2>/dev/null | awk '{
+        printf "  %-50s %10s\n", $9, $5
+    }' || log_warning "Sem backups"
+
+    echo ""
+    log_success "════════════════════════════════════════════════════════════════"
+
+    return 0
+}
+
+# ============================================================================
+# DELETAR BACKUPS ANTIGOS
+# ============================================================================
+
+delete_old_backups() {
+    local days=${1:-7}
+
+    log_info "════════════════════════════════════════════════════════════════"
+    log_info "Deletar Backups com mais de $days dias"
+    log_info "════════════════════════════════════════════════════════════════"
+    echo ""
+
+    if [ ! -d "$BACKUP_DIR" ]; then
+        log_warning "Diretório de backups não encontrado"
+        return 0
+    fi
+
+    log_info "Procurando backups antigos..."
+
+    local count=$(find "$BACKUP_DIR" -name "*.yaml" -mtime "+$days" 2>/dev/null | wc -l)
+
+    if [ "$count" -eq 0 ]; then
+        log_info "Nenhum backup antigo encontrado"
+        return 0
+    fi
+
+    log_warning "Encontrados $count backups para deletar"
+    find "$BACKUP_DIR" -name "*.yaml" -mtime "+$days" -exec echo "  - {}" \;
+    echo ""
+
+    find "$BACKUP_DIR" -name "*.yaml" -mtime "+$days" -delete
+
+    log_success "✓ Backups antigos deletados"
+
+    return 0
 }
 
 # ============================================================================
@@ -1130,59 +1827,98 @@ export_config() {
 show_help() {
     cat << 'HELP_EOF'
 
-╔════════════════════════════════════════════════════════════════╗
-║ deploy-argocd.sh - ArgoCD Deployment Automation               ║
-║ Versão: 2.0.0                                                 ║
-║ ✓ SUPORTE A INGRESS (https://argocd.domain.com.br)            ║
-║ ✓ GERENCIAMENTO AUTOMÁTICO DE CLUSTERS                        ║
-║ ✓ LOGIN VIA CLI SEM PORT-FORWARD                              ║
-╚════════════════════════════════════════════════════════════════╝
+INSTALAÇÃO (2 comandos):
+  install-main <contexto>             Instalar MAIN
+  install-remote <contexto>           Instalar REMOTE
 
-INSTALAÇÃO:
-  install-main <contexto>             Instalar MAIN (5 etapas + Ingress)
-  install-remote <contexto>           Instalar REMOTO (3 etapas)
 
-DESINSTALAÇÃO:
-  uninstall-main <contexto>           Remover MAIN
-  uninstall-remote <contexto>         Remover REMOTO
+DESINSTALAÇÃO (2 comandos):
+  uninstall-main <contexto>           Remover MAIN com backup
+  uninstall-remote <contexto>         Remover REMOTE
 
-GERENCIAMENTO DE CLUSTERS:
+
+GERENCIAMENTO DE CLUSTERS (2 comandos):
   register-cluster <remote> <nome>    Registrar cluster remoto (via Ingress)
   check-clusters [contexto]           Verificar status dos clusters
 
-GERENCIAMENTO DE SENHAS:
+
+GERENCIAMENTO DE SENHAS (4 comandos):
   get-admin-password <contexto>       Obter senha admin
   show-credentials <contexto>         Mostrar credenciais (user, pass, URL)
   login-web <contexto>                Mostrar credenciais para acesso web
   login-cli <contexto>                Login via CLI (sem port-forward)
 
-DIAGNÓSTICO:
+
+GERENCIAMENTO DE USUÁRIOS (3 comandos):
+  create-user <user> <pass>           Criar novo usuário (role:developer)
+  change-password <user> <pass>       Alterar senha do usuário
+  list-users [contexto]               Listar usuários e roles
+
+
+GERENCIAMENTO DE TOKENS (4 comandos):
+  generate-token <user>               Gerar token permanente (CI/CD)
+  generate-token <user> <segundos>    Gerar token com expiração
+  list-tokens <user>                  Listar tokens do usuário
+  revoke-token <user> <token-id>      Revogar token por ID
+
+
+BACKUP E RESTORE (4 comandos):
+  backup [contexto]                   Fazer backup da configuração
+  list-backups                        Listar todos os backups
+  restore <arquivo> [contexto]        Restaurar do backup (com segurança)
+  delete-old-backups <dias>           Deletar backups com mais de N dias
+
+
+DIAGNÓSTICO (4 comandos):
   check-status                        Verificar status completo
   check-ingress [contexto]            Verificar Ingress
-  backup                              Fazer backup da config
-
-AJUDA:
   help                                Mostrar esta mensagem
+  --help, -h                          Mostrar esta mensagem (alternativa)
 
-EXEMPLOS:
-  # Instalação Completa:
+
+EXEMPLOS DE USO:
+
+  # Instalação inicial
   ./deploy-argocd.sh install-main kubernetes-admin@kubernetes
   ./deploy-argocd.sh install-remote kubernetes-admin@kubernetes
 
-  # Ver Credenciais:
+  # Gerenciamento de usuários
+  ./deploy-argocd.sh create-user devuser pass@dev2025
+  ./deploy-argocd.sh list-users
+
+  # Gerar tokens para CI/CD
+  ./deploy-argocd.sh generate-token devuser              # Permanente
+  ./deploy-argocd.sh generate-token devuser 3600         # 1 hora
+  ./deploy-argocd.sh list-tokens devuser
+
+  # Backup e restore
+  ./deploy-argocd.sh backup
+  ./deploy-argocd.sh list-backups
+  ./deploy-argocd.sh restore ./backups/argocd-backup-20251105-143022.yaml
+  ./deploy-argocd.sh delete-old-backups 7
+
+  # Diagnóstico
+  ./deploy-argocd.sh check-status
+  ./deploy-argocd.sh check-clusters
   ./deploy-argocd.sh show-credentials kubernetes-admin@kubernetes
 
-  # Registrar Cluster (automático com Ingress):
-  ./deploy-argocd.sh register-cluster kubernetes-admin@kubernetes cluster-c1
+  # Desinstalação
+  ./deploy-argocd.sh uninstall-main kubernetes-admin@kubernetes
 
-  # Login CLI (sem port-forward):
-  ./deploy-argocd.sh login-cli kubernetes-admin@kubernetes
+CONTEXTOS PADRÃO:
+  kubernetes-admin@kubernetes         Cluster MAIN (C2)
 
-  # Ver status:
-  ./deploy-argocd.sh check-status
+LOGS E BACKUPS:
+  Logs:       ./logs/deploy.log
+  Backups:    ./backups/
 
-  # Verificar Ingress:
-  ./deploy-argocd.sh check-ingress kubernetes-admin@kubernetes
+REQUISITOS:
+  • kubectl configurado com acesso aos clusters
+  • Permissões de admin no cluster
+  • Internet para download de manifestos
+
+SUPORTE:
+  Para mais informações: ./deploy-argocd.sh help
 
 HELP_EOF
 }
@@ -1194,13 +1930,11 @@ HELP_EOF
 main() {
     clear
     echo -e "${CYAN}"
-    echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║ ArgoCD v2.13.3 - Deployment Automation v2.0.0                 ║"
-    echo "║ ✅ 5 ETAPAS MAIN + 3 ETAPAS REMOTE                            ║"
-    echo "║ ✅ INGRESS AUTOMÁTICO (https://argocd.domain.com.br)          ║"
-    echo "║ ✅ LOGIN CLI SEM PORT-FORWARD                                 ║"
-    echo "║ ✅ REGISTRO AUTOMÁTICO DE CLUSTERS                            ║"
-    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║ ::::  ArgoCD Deployment Automation v2.13.3  ::::             ║"
+    echo "║ Versão: 1.0.0                                                ║"
+    echo "║ GERENCIAMENTO AUTOMÁTICO DE CLUSTERS                         ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 
     check_dependencies
@@ -1247,7 +1981,24 @@ main() {
             ;;
 
         backup)
-            export_config
+            backup_argocd "${2:-kubernetes-admin@kubernetes}"
+            ;;
+
+        list-backups)
+            list_backups
+            ;;
+
+        restore)
+            if [ -z "$2" ]; then
+                log_error "Uso: ./deploy-argocd.sh restore <backup_file> [context]"
+                list_backups
+                return 1
+            fi
+            restore_argocd_backup "$2" "${3:-kubernetes-admin@kubernetes}"
+            ;;
+
+        delete-old-backups)
+            delete_old_backups "${2:-7}"
             ;;
 
         get-admin-password)
@@ -1260,6 +2011,35 @@ main() {
         show-credentials)
             [ -z "${2:-}" ] && { log_error "Contexto não fornecido"; return 1; }
             show_admin_credentials "${2}"
+            ;;
+
+        create-user)
+            create_argocd_user "${2:-}" "${3:-}" "${4:-kubernetes-admin@kubernetes}"
+            ;;
+
+        change-password)
+            change_argocd_password "${2:-}" "${3:-}" "${4:-kubernetes-admin@kubernetes}"
+            ;;
+
+        list-users)
+            list_argocd_users "${2:-kubernetes-admin@kubernetes}"
+            ;;
+
+        generate-token)
+            generate_argocd_token "${2:-}" "${3:-}" "${4:-kubernetes-admin@kubernetes}"
+            ;;
+
+        list-tokens)
+            list_argocd_tokens "${2:-}" "${3:-kubernetes-admin@kubernetes}"
+            ;;
+
+        revoke-token)
+            if [ -z "$3" ]; then
+                log_error "Uso: ./deploy-argocd.sh revoke-token <username> <token_id>"
+                list_argocd_tokens "$2" "$3"
+            else
+                revoke_argocd_token "${2:-}" "${3:-}" "${4:-kubernetes-admin@kubernetes}"
+            fi
             ;;
 
         login-web)
